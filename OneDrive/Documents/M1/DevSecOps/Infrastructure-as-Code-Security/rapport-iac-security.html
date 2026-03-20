@@ -1,0 +1,1664 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Infrastructure as Code Security — Rapport BAC+4</title>
+  <style>
+    /* ===== RESET & BASE ===== */
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 11pt;
+      line-height: 1.7;
+      color: #1a1a2e;
+      background: #fff;
+    }
+
+    /* ===== PAGE LAYOUT ===== */
+    @page {
+      size: A4;
+      margin: 2.5cm 2cm 2.5cm 2.5cm;
+    }
+
+    .page {
+      max-width: 210mm;
+      margin: 0 auto;
+      padding: 0;
+    }
+
+    /* ===== PAGE BREAK ===== */
+    .page-break { page-break-after: always; break-after: page; }
+    .avoid-break { page-break-inside: avoid; break-inside: avoid; }
+
+    /* ===== HEADER / FOOTER ===== */
+    .doc-header {
+      position: running(header);
+      font-size: 8.5pt;
+      color: #6b7280;
+      border-bottom: 1px solid #e5e7eb;
+      padding-bottom: 4px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    /* Simulated header/footer via top/bottom divs for Chrome printing */
+    .page-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 8.5pt;
+      color: #6b7280;
+      border-bottom: 1px solid #d1d5db;
+      padding-bottom: 6px;
+      margin-bottom: 24px;
+    }
+
+    .page-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 8.5pt;
+      color: #6b7280;
+      border-top: 1px solid #d1d5db;
+      padding-top: 6px;
+      margin-top: 32px;
+    }
+
+    /* ===== COVER PAGE ===== */
+    .cover {
+      min-height: 90vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      padding: 60px 40px;
+      background: linear-gradient(135deg, #0f172a 0%, #1e3a5f 50%, #0f172a 100%);
+      color: #fff;
+      border-radius: 4px;
+      margin: 0 -20px;
+    }
+
+    .cover-badge {
+      display: inline-block;
+      background: rgba(99,102,241,0.25);
+      border: 1px solid rgba(99,102,241,0.6);
+      color: #a5b4fc;
+      font-size: 9pt;
+      font-weight: bold;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      padding: 6px 18px;
+      border-radius: 20px;
+      margin-bottom: 40px;
+    }
+
+    .cover h1 {
+      font-size: 30pt;
+      font-weight: 900;
+      color: #f0f4ff;
+      line-height: 1.15;
+      margin-bottom: 16px;
+      letter-spacing: -0.5px;
+    }
+
+    .cover h1 span {
+      color: #818cf8;
+    }
+
+    .cover .subtitle {
+      font-size: 13pt;
+      color: #94a3b8;
+      font-style: italic;
+      max-width: 520px;
+      margin: 0 auto 60px;
+      line-height: 1.5;
+    }
+
+    .cover-separator {
+      width: 60px;
+      height: 3px;
+      background: linear-gradient(90deg, #6366f1, #818cf8);
+      border-radius: 2px;
+      margin: 0 auto 60px;
+    }
+
+    .cover-meta {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      color: #cbd5e1;
+      font-size: 10.5pt;
+    }
+
+    .cover-meta .label {
+      color: #818cf8;
+      font-weight: bold;
+      margin-right: 8px;
+    }
+
+    .cover-logo-area {
+      margin-top: 60px;
+      padding-top: 30px;
+      border-top: 1px solid rgba(255,255,255,0.1);
+      display: flex;
+      gap: 24px;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .cover-tag {
+      background: rgba(99,102,241,0.15);
+      border: 1px solid rgba(99,102,241,0.3);
+      color: #c7d2fe;
+      font-size: 8.5pt;
+      padding: 4px 12px;
+      border-radius: 4px;
+    }
+
+    /* ===== TYPOGRAPHY ===== */
+    h1 {
+      font-size: 20pt;
+      color: #1e3a5f;
+      margin: 32px 0 12px;
+      border-bottom: 3px solid #6366f1;
+      padding-bottom: 8px;
+    }
+
+    h2 {
+      font-size: 15pt;
+      color: #1e3a5f;
+      margin: 28px 0 10px;
+      padding-left: 12px;
+      border-left: 4px solid #6366f1;
+    }
+
+    h3 {
+      font-size: 12pt;
+      color: #374151;
+      margin: 20px 0 8px;
+      font-weight: bold;
+    }
+
+    p {
+      margin-bottom: 12px;
+      text-align: justify;
+    }
+
+    /* ===== SECTION NUMBERS ===== */
+    .section-num {
+      display: inline-block;
+      background: #6366f1;
+      color: #fff;
+      font-size: 9pt;
+      font-weight: bold;
+      padding: 2px 8px;
+      border-radius: 3px;
+      margin-right: 8px;
+      vertical-align: middle;
+    }
+
+    /* ===== TABLE OF CONTENTS ===== */
+    .toc {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      padding: 24px 32px;
+      margin: 24px 0;
+    }
+
+    .toc h2 {
+      border-left: none;
+      padding-left: 0;
+      font-size: 13pt;
+      margin-bottom: 16px;
+      color: #1e3a5f;
+    }
+
+    .toc ol {
+      list-style: none;
+      counter-reset: toc-counter;
+    }
+
+    .toc ol li {
+      counter-increment: toc-counter;
+      padding: 4px 0;
+      border-bottom: 1px dotted #cbd5e1;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .toc ol li:last-child { border-bottom: none; }
+
+    .toc ol li a {
+      color: #374151;
+      text-decoration: none;
+      font-size: 10.5pt;
+    }
+
+    .toc ol li a:hover { color: #6366f1; }
+
+    .toc-sub {
+      padding-left: 20px;
+      font-size: 10pt;
+      color: #6b7280;
+    }
+
+    /* ===== CALLOUT BOXES ===== */
+    .callout {
+      border-radius: 6px;
+      padding: 14px 18px;
+      margin: 16px 0;
+      border-left: 4px solid;
+    }
+
+    .callout.info {
+      background: #eff6ff;
+      border-color: #3b82f6;
+      color: #1e40af;
+    }
+
+    .callout.danger {
+      background: #fef2f2;
+      border-color: #ef4444;
+      color: #991b1b;
+    }
+
+    .callout.success {
+      background: #f0fdf4;
+      border-color: #22c55e;
+      color: #166534;
+    }
+
+    .callout.warning {
+      background: #fffbeb;
+      border-color: #f59e0b;
+      color: #92400e;
+    }
+
+    .callout strong {
+      display: block;
+      margin-bottom: 4px;
+      font-size: 9.5pt;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    /* ===== CODE BLOCKS ===== */
+    pre {
+      background: #1e2433;
+      color: #e2e8f0;
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 8.5pt;
+      line-height: 1.5;
+      padding: 16px 20px;
+      border-radius: 6px;
+      overflow-x: auto;
+      margin: 14px 0;
+      border: 1px solid #2d3748;
+    }
+
+    code {
+      font-family: 'Courier New', Courier, monospace;
+      background: #f1f5f9;
+      color: #be185d;
+      font-size: 9pt;
+      padding: 2px 6px;
+      border-radius: 3px;
+    }
+
+    pre code {
+      background: transparent;
+      color: inherit;
+      font-size: inherit;
+      padding: 0;
+    }
+
+    /* Code syntax colors */
+    .kw { color: #c792ea; }   /* keywords */
+    .str { color: #c3e88d; }  /* strings */
+    .cmt { color: #546e7a; font-style: italic; } /* comments */
+    .attr { color: #82aaff; } /* attributes */
+    .val { color: #f78c6c; }  /* values */
+    .err { color: #ff5370; font-weight: bold; } /* errors/danger */
+    .ok { color: #c3e88d; font-weight: bold; }  /* ok/good */
+
+    /* ===== TABLES ===== */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 16px 0;
+      font-size: 9.5pt;
+    }
+
+    thead tr {
+      background: #1e3a5f;
+      color: #fff;
+    }
+
+    thead th {
+      padding: 10px 12px;
+      text-align: left;
+      font-weight: bold;
+    }
+
+    tbody tr:nth-child(even) { background: #f8fafc; }
+    tbody tr:hover { background: #eff6ff; }
+
+    tbody td {
+      padding: 8px 12px;
+      border-bottom: 1px solid #e2e8f0;
+      vertical-align: top;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-size: 8pt;
+      font-weight: bold;
+    }
+
+    .badge.critical { background: #fee2e2; color: #991b1b; }
+    .badge.high { background: #ffedd5; color: #9a3412; }
+    .badge.medium { background: #fef3c7; color: #92400e; }
+    .badge.low { background: #dcfce7; color: #166534; }
+
+    /* ===== COMPARISON BLOCKS ===== */
+    .compare-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin: 16px 0;
+    }
+
+    .compare-box {
+      border-radius: 6px;
+      overflow: hidden;
+    }
+
+    .compare-box .compare-header {
+      padding: 8px 14px;
+      font-size: 9pt;
+      font-weight: bold;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .compare-box.vuln .compare-header {
+      background: #ef4444;
+      color: #fff;
+    }
+
+    .compare-box.secure .compare-header {
+      background: #22c55e;
+      color: #fff;
+    }
+
+    .compare-box pre {
+      margin: 0;
+      border-radius: 0 0 6px 6px;
+      border-top: none;
+      font-size: 8pt;
+    }
+
+    /* ===== STATS CARDS ===== */
+    .stats-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      margin: 20px 0;
+    }
+
+    .stat-card {
+      text-align: center;
+      padding: 20px 12px;
+      border-radius: 8px;
+      border: 1px solid #e2e8f0;
+    }
+
+    .stat-card .stat-num {
+      font-size: 32pt;
+      font-weight: 900;
+      line-height: 1;
+      margin-bottom: 6px;
+    }
+
+    .stat-card .stat-label {
+      font-size: 9pt;
+      color: #6b7280;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .stat-card.red { border-color: #fecaca; background: #fef2f2; }
+    .stat-card.red .stat-num { color: #dc2626; }
+    .stat-card.green { border-color: #bbf7d0; background: #f0fdf4; }
+    .stat-card.green .stat-num { color: #16a34a; }
+    .stat-card.blue { border-color: #bfdbfe; background: #eff6ff; }
+    .stat-card.blue .stat-num { color: #2563eb; }
+
+    /* ===== PIPELINE DIAGRAM ===== */
+    .pipeline {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin: 20px 0;
+      flex-wrap: wrap;
+    }
+
+    .pipeline-step {
+      background: #1e3a5f;
+      color: #fff;
+      padding: 10px 16px;
+      border-radius: 6px;
+      font-size: 9pt;
+      font-weight: bold;
+      text-align: center;
+      min-width: 90px;
+    }
+
+    .pipeline-step.trigger { background: #6366f1; }
+    .pipeline-step.scan-vuln { background: #f59e0b; }
+    .pipeline-step.scan-secure { background: #10b981; }
+    .pipeline-step.report { background: #3b82f6; }
+
+    .pipeline-arrow {
+      color: #94a3b8;
+      font-size: 14pt;
+      font-weight: bold;
+    }
+
+    /* ===== QUOTE / HIGHLIGHT ===== */
+    blockquote {
+      border-left: 4px solid #6366f1;
+      padding: 12px 20px;
+      margin: 16px 0;
+      background: #f8fafc;
+      font-style: italic;
+      color: #374151;
+      border-radius: 0 6px 6px 0;
+    }
+
+    /* ===== PRINT STYLES ===== */
+    @media print {
+      body { font-size: 10.5pt; }
+      .cover { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      pre { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .stat-card, .badge, .callout { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      thead tr { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .pipeline-step { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .compare-box .compare-header { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    }
+
+    /* ===== MISC ===== */
+    ul, ol { padding-left: 24px; margin-bottom: 12px; }
+    li { margin-bottom: 5px; }
+    strong { color: #1e3a5f; }
+    .text-muted { color: #6b7280; font-size: 9.5pt; }
+    .mt-4 { margin-top: 16px; }
+    hr { border: none; border-top: 1px solid #e2e8f0; margin: 24px 0; }
+  </style>
+</head>
+<body>
+
+<!-- ============================================================ -->
+<!--  PAGE DE GARDE                                               -->
+<!-- ============================================================ -->
+<div class="page">
+  <div class="cover">
+    <div class="cover-badge">Sujet 07 — DevSecOps BAC+4</div>
+
+    <h1>Infrastructure as Code<br><span>Security</span></h1>
+    <p class="subtitle">Comment sécuriser son infrastructure Terraform avant même de la déployer</p>
+    <div class="cover-separator"></div>
+
+    <div class="cover-meta">
+      <div><span class="label">Formation :</span>DevSecOps BAC+4 — Jedy Formation</div>
+      <div><span class="label">Formateur :</span>Kalidou DIA</div>
+      <div><span class="label">Repo GitHub :</span>varshanroshan/Infrastructure-as-Code-Security</div>
+      <div><span class="label">Année :</span>2025 – 2026</div>
+    </div>
+
+    <div class="cover-logo-area">
+      <span class="cover-tag">Terraform</span>
+      <span class="cover-tag">Checkov SAST</span>
+      <span class="cover-tag">GitHub Actions</span>
+      <span class="cover-tag">AWS CIS Benchmark</span>
+    </div>
+  </div>
+</div>
+
+<div class="page-break"></div>
+
+<!-- ============================================================ -->
+<!--  SOMMAIRE                                                    -->
+<!-- ============================================================ -->
+<div class="page">
+  <div class="page-header">
+    <span>IaC Security — DevSecOps BAC+4</span>
+    <span>Jedy Formation 2025-2026</span>
+  </div>
+
+  <h1>Sommaire</h1>
+
+  <div class="toc">
+    <ol>
+      <li><a href="#intro">1. Introduction — L'histoire qui a tout changé</a></li>
+      <li><a href="#iac">2. L'Infrastructure as Code : puissante, mais risquée</a></li>
+      <li><a href="#outils">3. Quel outil choisir ? Notre comparaison honnête</a></li>
+      <li><a href="#demo">4. Notre démo — Ce qu'on a fait concrètement</a>
+        <div class="toc-sub">4.1 Le code volontairement cassé<br>4.2 Les 35 failles détectées<br>4.3 La correction faille par faille</div>
+      </li>
+      <li><a href="#pipeline">5. Le pipeline GitHub Actions — Le vigile automatique</a></li>
+      <li><a href="#moindre-privilege">6. Le principe du moindre privilège</a></li>
+      <li><a href="#bilan">7. Ce qu'on a appris et les limites de l'outil</a></li>
+      <li><a href="#conclusion">8. Conclusion</a></li>
+      <li><a href="#annexes">Annexes</a>
+        <div class="toc-sub">A. Code complet vulnerable/main.tf<br>B. Code complet secure/main.tf<br>C. Workflow GitHub Actions<br>D. Liste des 35 failles Checkov</div>
+      </li>
+    </ol>
+  </div>
+
+  <div class="page-footer">
+    <span>Rapport de projet — Infrastructure as Code Security</span>
+    <span>Page 2</span>
+  </div>
+</div>
+
+<div class="page-break"></div>
+
+<!-- ============================================================ -->
+<!--  SECTION 1 — INTRODUCTION                                   -->
+<!-- ============================================================ -->
+<div class="page" id="intro">
+  <div class="page-header">
+    <span>IaC Security — DevSecOps BAC+4</span>
+    <span>Jedy Formation 2025-2026</span>
+  </div>
+
+  <h1><span class="section-num">1</span>Introduction — L'histoire qui a tout changé</h1>
+
+  <h2>Capital One, 2019 : une ligne de code, 100 millions de victimes</h2>
+
+  <p>En mars 2019, une ingénieure du nom de Paige Thompson quitte Amazon Web Services après plusieurs années à travailler sur l'infrastructure cloud. Elle connaît le système par cœur. Quelques mois plus tard, elle remarque quelque chose d'étrange dans la configuration publique d'un serveur appartenant à Capital One, l'une des plus grandes banques américaines.</p>
+
+  <p>Le problème ? Un rôle IAM (c'est-à-dire une permission d'accès configurée dans le cloud AWS) était mal configuré dans le code Terraform de la banque. Ce rôle autorisait n'importe quelle machine à lui demander des identifiants. En quelques requêtes HTTP simples, Paige Thompson a pu récupérer des clés d'accès temporaires. Avec ces clés, elle a accédé à plus de 700 dossiers S3 (des espaces de stockage dans le cloud). À l'intérieur : les données personnelles de <strong>106 millions de clients</strong>.</p>
+
+  <blockquote>
+    "La vulnérabilité n'était pas dans un algorithme complexe. Elle était dans une configuration. Quelqu'un avait écrit une règle de sécurité trop permissive, et personne ne l'avait détectée avant le déploiement."
+  </blockquote>
+
+  <p>Capital One a payé 80 millions de dollars d'amende. La réputation de la banque en a pris un coup immense. Et le plus douloureux dans cette histoire ? La faille aurait pu être détectée <strong>avant même que le code soit déployé</strong>, avec des outils qui existaient déjà à l'époque.</p>
+
+  <p>C'est exactement ce problème que nous avons voulu explorer dans ce projet. Comment on évite ça ? Comment on fait pour qu'une erreur de configuration soit détectée dès l'écriture du code, et pas des mois plus tard par une ancienne employée malveillante ?</p>
+
+  <h2>Notre question de départ</h2>
+
+  <p>Au début de ce projet, notre groupe partait d'une question simple : est-ce qu'il est possible d'automatiser la détection des erreurs de sécurité dans du code d'infrastructure, de la même façon qu'on automatise les tests unitaires pour du code applicatif ?</p>
+
+  <p>La réponse, on l'a découverte assez vite, est oui. Et c'est là que le concept de "shift-left" entre en jeu. Shift-left, ça veut dire littéralement "décaler vers la gauche" sur la frise chronologique d'un projet. En sécurité, ça signifie : <strong>détecter les problèmes le plus tôt possible dans le cycle de développement</strong>, plutôt que d'attendre les tests en production ou, pire, un incident réel.</p>
+
+  <p>Notre sujet 07 nous a donc amenés à construire une démo complète : un fichier Terraform volontairement truffé de failles, un scanner qui les détecte automatiquement, une version corrigée du même fichier, et un pipeline qui vérifie tout ça à chaque fois qu'on pousse du code sur GitHub.</p>
+
+  <div class="stats-row">
+    <div class="stat-card red">
+      <div class="stat-num">35</div>
+      <div class="stat-label">Failles détectées dans le code vulnérable</div>
+    </div>
+    <div class="stat-card blue">
+      <div class="stat-num">4</div>
+      <div class="stat-label">Familles de vulnérabilités simulées</div>
+    </div>
+    <div class="stat-card green">
+      <div class="stat-num">3</div>
+      <div class="stat-label">Jobs dans le pipeline CI/CD</div>
+    </div>
+  </div>
+
+  <div class="page-footer">
+    <span>Rapport de projet — Infrastructure as Code Security</span>
+    <span>Page 3</span>
+  </div>
+</div>
+
+<div class="page-break"></div>
+
+<!-- ============================================================ -->
+<!--  SECTION 2 — L'IAC                                          -->
+<!-- ============================================================ -->
+<div class="page" id="iac">
+  <div class="page-header">
+    <span>IaC Security — DevSecOps BAC+4</span>
+    <span>Jedy Formation 2025-2026</span>
+  </div>
+
+  <h1><span class="section-num">2</span>L'Infrastructure as Code : puissante, mais risquée</h1>
+
+  <h2>C'est quoi l'IaC ?</h2>
+
+  <p>Avant de commencer le projet, on avait une idée vague de ce qu'était l'IaC. On pensait que c'était juste du YAML ou du JSON pour décrire des serveurs. En fait, c'est bien plus que ça.</p>
+
+  <p>L'Infrastructure as Code (IaC), c'est l'idée de décrire toute son infrastructure cloud sous forme de fichiers texte. Plutôt que de cliquer dans des interfaces graphiques pour créer un serveur, un bucket de stockage ou un pare-feu, on écrit du code. Ce code est ensuite exécuté par un outil comme Terraform, qui crée ou modifie les ressources dans le cloud en suivant les instructions à la lettre.</p>
+
+  <p>Imaginez que vous construisez des maisons. Sans IaC, chaque maison est construite à la main par des ouvriers qui font des choix au fur et à mesure. Avec IaC, vous avez <strong>un plan architectural écrit en code</strong>. L'outil lit ce plan et construit la maison exactement comme décrit. La maison sera identique à chaque fois qu'on repart du même plan. C'est reproductible, versionnable avec Git, et auditable.</p>
+
+  <div class="callout info">
+    <strong>Terraform en deux mots</strong>
+    Terraform est l'outil IaC le plus populaire, créé par HashiCorp. On écrit des fichiers <code>.tf</code> qui décrivent des ressources AWS, Azure ou Google Cloud. Terraform calcule les changements nécessaires et les applique. C'est comme un "git pour l'infrastructure".
+  </div>
+
+  <h2>Le problème : si le plan est mauvais, toutes les maisons sont mauvaises</h2>
+
+  <p>La grande force de l'IaC devient aussi sa grande faiblesse. Si le plan architectural dit "laisse la porte d'entrée ouverte à tout le monde", alors <strong>toutes les maisons construites à partir de ce plan auront la porte ouverte</strong>. Et si ce plan est utilisé pour créer 50 environnements (développement, test, staging, production...), vous avez 50 portes ouvertes.</p>
+
+  <p>Dans le monde cloud, ça se traduit par des erreurs de configuration qui se répliquent à grande échelle. Une mauvaise règle IAM se retrouve dans tous les environnements. Un bucket S3 mal configuré est déployé partout. Et contrairement à un bug dans du code applicatif, une erreur de configuration peut ne générer aucune erreur apparente : tout fonctionne, mais la sécurité est absente.</p>
+
+  <h2>Les 4 risques qu'on a simulés dans notre projet</h2>
+
+  <h3>Risque 1 — Le secret hardcodé (comme la clé sous le paillasson)</h3>
+
+  <p>Dans notre fichier <code>vulnerable/main.tf</code>, on a écrit le mot de passe de la base de données directement dans le code :</p>
+
+  <pre><code><span class="attr">password</span> = <span class="err">"SuperPassword123!"</span> <span class="cmt"># DANGER : secret hardcodé !</span></code></pre>
+
+  <p>C'est exactement comme laisser sa clé sous le paillasson devant sa porte. N'importe qui qui a accès au dépôt Git — même en lecture seule — peut lire ce mot de passe. Pire : ce mot de passe se retrouve dans l'historique Git, dans le fichier d'état Terraform (<code>terraform.tfstate</code>), et potentiellement dans les logs CI/CD. Même si on corrige ça plus tard, la trace reste.</p>
+
+  <h3>Risque 2 — Les permissions trop larges (le passe-partout de l'immeuble)</h3>
+
+  <p>On a créé une politique IAM avec <code>Action = "*"</code> et <code>Resource = "*"</code>. En pratique, ça revient à donner à une entité (un utilisateur, un service) les droits d'administrateur complet sur tout le compte AWS. C'est comme donner le passe-partout de tout un immeuble à quelqu'un qui n'a besoin que d'accéder au couloir du rez-de-chaussée. Si cette entité est compromise, c'est toute l'infrastructure AWS qui tombe.</p>
+
+  <h3>Risque 3 — Le bucket S3 public (ses documents confidentiels sur Internet)</h3>
+
+  <p>AWS S3 est un service de stockage dans le cloud. Par défaut, les buckets sont privés. Mais en ajoutant <code>acl = "public-read"</code>, on rend tout le contenu du bucket accessible à n'importe qui sur Internet, sans authentification. Imaginez publier vos documents RH, vos sauvegardes de base de données, ou vos logs sur Internet. C'est exactement ce que fait cette configuration.</p>
+
+  <h3>Risque 4 — Le configuration drift (le plan qui ne correspond plus à la réalité)</h3>
+
+  <p>Le drift (en français : dérive), c'est quand la configuration réelle de l'infrastructure ne correspond plus au code IaC. Quelqu'un a modifié un pare-feu à la main via la console AWS. Une règle a été ajoutée manuellement en urgence. Le code dit une chose, la réalité en est une autre. Ce gap est dangereux car les outils de sécurité analysent le code, pas la réalité. Une faille introduite manuellement passe sous les radars.</p>
+
+  <div class="callout warning">
+    <strong>Le drift est invisible</strong>
+    Checkov et les outils similaires analysent le code IaC. Si quelqu'un ouvre un port de sécurité directement dans AWS sans modifier le code Terraform, aucun outil d'analyse statique ne le détectera. C'est une limite importante qu'on détaille dans la section 7.
+  </div>
+
+  <div class="page-footer">
+    <span>Rapport de projet — Infrastructure as Code Security</span>
+    <span>Page 4</span>
+  </div>
+</div>
+
+<div class="page-break"></div>
+
+<!-- ============================================================ -->
+<!--  SECTION 3 — LES OUTILS                                     -->
+<!-- ============================================================ -->
+<div class="page" id="outils">
+  <div class="page-header">
+    <span>IaC Security — DevSecOps BAC+4</span>
+    <span>Jedy Formation 2025-2026</span>
+  </div>
+
+  <h1><span class="section-num">3</span>Quel outil choisir ? Notre comparaison honnête</h1>
+
+  <p>Avant de commencer à coder, on s'est retrouvés face à un problème classique : il existe plusieurs outils pour analyser la sécurité du code IaC, et on ne savait pas lequel choisir. Franchement, au début on ne connaissait aucun de ces noms. On a passé quelques heures à lire la documentation et à faire des tests rapides.</p>
+
+  <h2>Les 4 candidats qu'on a étudiés</h2>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Outil</th>
+        <th>Créé par</th>
+        <th>Langages IaC supportés</th>
+        <th>Licence</th>
+        <th>Notre verdict</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Checkov</strong></td>
+        <td>Prisma Cloud (Palo Alto)</td>
+        <td>Terraform, CloudFormation, K8s, Dockerfile, ARM...</td>
+        <td>Open source (Apache 2.0)</td>
+        <td><span class="badge success">Notre choix ✓</span></td>
+      </tr>
+      <tr>
+        <td><strong>tfsec</strong></td>
+        <td>Aqua Security</td>
+        <td>Terraform uniquement</td>
+        <td>Open source (MIT)</td>
+        <td><span class="badge medium">Bon mais limité</span></td>
+      </tr>
+      <tr>
+        <td><strong>Terrascan</strong></td>
+        <td>Tenable</td>
+        <td>Terraform, K8s, Dockerfile, Helm...</td>
+        <td>Open source (Apache 2.0)</td>
+        <td><span class="badge medium">Bien, moins documenté</span></td>
+      </tr>
+      <tr>
+        <td><strong>KICS</strong></td>
+        <td>Checkmarx</td>
+        <td>Terraform, CloudFormation, K8s, Docker, Ansible...</td>
+        <td>Open source (Apache 2.0)</td>
+        <td><span class="badge low">Complet mais lourd</span></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2>Pourquoi on a choisi Checkov</h2>
+
+  <p>Plusieurs raisons ont guidé notre choix. D'abord, <strong>la facilité d'installation</strong> : un simple <code>pip install checkov</code> et c'est opérationnel. Pas besoin de Docker, pas besoin de compiler quoi que ce soit. Pour un projet étudiant avec des deadlines, c'est important.</p>
+
+  <p>Ensuite, la <strong>richesse des règles</strong> : Checkov embarque plus de 1000 règles de sécurité basées sur les benchmarks CIS (Center for Internet Security), le framework AWS Well-Architected, et les standards SOC2. Sur notre seul fichier Terraform de 170 lignes, il a trouvé 35 problèmes.</p>
+
+  <p>La <strong>lisibilité des rapports</strong> nous a aussi convaincus. Chaque faille est identifiée par un code unique (comme <code>CKV_AWS_20</code>), accompagnée d'une explication et d'un lien vers la documentation. On comprend tout de suite pourquoi c'est problématique et comment corriger.</p>
+
+  <p>Enfin, l'<strong>intégration GitHub Actions</strong> est native. On peut lancer Checkov en une ligne de commande dans un workflow YAML, récupérer un rapport JSON, et bloquer un push si des failles critiques sont détectées.</p>
+
+  <h2>Ce qu'on a trouvé moins bien chez Checkov</h2>
+
+  <p>Soyons honnêtes : Checkov n'est pas parfait. Il génère parfois des <strong>faux positifs</strong> (c'est-à-dire des alertes sur des choses qui ne sont pas réellement des problèmes dans notre contexte). Sur notre fichier <code>secure/main.tf</code>, quelques règles concernant la réplication cross-région d'un bucket S3 ou les notifications d'événements ont déclenché des alertes, alors que ces fonctionnalités ne sont pas indispensables dans un projet de démo.</p>
+
+  <p>Il ne détecte aussi <strong>que les problèmes dans le code écrit</strong>. Si quelqu'un modifie la configuration directement dans AWS sans toucher au code Terraform, Checkov n'en saura rien. Pour ça, il faudrait un outil de type AWS Config ou Drift Detection, ce qui dépasse le cadre de notre projet.</p>
+
+  <h2>Et tfsec ?</h2>
+
+  <p>On a quand même testé tfsec en parallèle. Il est plus rapide et produit moins de bruit (moins de faux positifs). Mais il se concentre uniquement sur Terraform. Or, dans un contexte professionnel réel, on travaille souvent avec plusieurs technologies : Kubernetes pour les conteneurs, Dockerfile pour les images, CloudFormation si on est sur un stack AWS pur... Checkov couvre tout ça, ce qui justifie notre choix pour un projet qui se veut représentatif d'un environnement DevSecOps complet.</p>
+
+  <div class="page-footer">
+    <span>Rapport de projet — Infrastructure as Code Security</span>
+    <span>Page 5</span>
+  </div>
+</div>
+
+<div class="page-break"></div>
+
+<!-- ============================================================ -->
+<!--  SECTION 4 — LA DÉMO                                        -->
+<!-- ============================================================ -->
+<div class="page" id="demo">
+  <div class="page-header">
+    <span>IaC Security — DevSecOps BAC+4</span>
+    <span>Jedy Formation 2025-2026</span>
+  </div>
+
+  <h1><span class="section-num">4</span>Notre démo — Ce qu'on a fait concrètement</h1>
+
+  <h2>4.1 — On a commencé par casser volontairement notre infrastructure</h2>
+
+  <p>L'idée de départ était de créer un fichier Terraform qui représente une infrastructure AWS "classique" : un bucket de stockage S3, un groupe de sécurité réseau, une base de données RDS, et une politique de droits IAM. Puis on a volontairement introduit des failles connues dans chaque ressource.</p>
+
+  <p>Ce n'était pas si simple que ça en avait l'air. On pensait au début introduire 4 ou 5 failles et se retrouver avec autant d'alertes Checkov. En réalité, chaque mauvaise pratique déclenche souvent <strong>plusieurs règles</strong> en cascade. Par exemple, le fait de ne pas chiffrer un bucket S3 viole à la fois la règle <code>CKV_AWS_19</code> (chiffrement au repos) et <code>CKV_AWS_145</code> (chiffrement via KMS). Résultat : on a obtenu 35 alertes sur un seul fichier de moins de 170 lignes.</p>
+
+  <div class="callout danger">
+    <strong>⚠ Avertissement important</strong>
+    Le fichier <code>vulnerable/main.tf</code> contient des vulnérabilités intentionnelles à des fins pédagogiques. Il ne doit jamais être déployé sur un compte AWS réel. Les mots de passe en clair sont fictifs.
+  </div>
+
+  <h2>4.2 — Les 35 failles détectées : on ne s'y attendait pas</h2>
+
+  <p>On a lancé Checkov avec cette commande simple :</p>
+
+  <pre><code>checkov -f vulnerable/main.tf --compact</code></pre>
+
+  <p>Le résultat est tombé en quelques secondes :</p>
+
+  <pre><code><span class="ok">Passed checks: 13</span>
+<span class="err">Failed checks: 35</span>
+Skipped checks: 0</code></pre>
+
+  <p>Franchement, on ne s'attendait pas à autant. 35 failles sur un seul fichier. Et ça, en quelques secondes, sans déployer quoi que ce soit sur AWS. C'est ça la puissance de l'analyse statique : elle fonctionne sur le code source, pas sur l'infrastructure réelle.</p>
+
+  <h2>4.3 — Les 4 failles principales expliquées une par une</h2>
+
+  <h3>Faille 1 — S3 public (CKV_AWS_20)</h3>
+
+  <div class="compare-grid avoid-break">
+    <div class="compare-box vuln">
+      <div class="compare-header">❌ Code vulnérable</div>
+      <pre><code><span class="kw">resource</span> <span class="str">"aws_s3_bucket_acl"</span> <span class="str">"vuln"</span> {
+  bucket = aws_s3_bucket.bucket.id
+  <span class="attr">acl</span>    = <span class="err">"public-read"</span>
+  <span class="cmt"># Tout internet peut lire ce bucket</span>
+}</code></pre>
+    </div>
+    <div class="compare-box secure">
+      <div class="compare-header">✅ Code sécurisé</div>
+      <pre><code><span class="kw">resource</span> <span class="str">"aws_s3_bucket_public_access_block"</span> <span class="str">"fix"</span> {
+  bucket = aws_s3_bucket.bucket.id
+  <span class="attr">block_public_acls</span>       = <span class="ok">true</span>
+  <span class="attr">block_public_policy</span>     = <span class="ok">true</span>
+  <span class="attr">ignore_public_acls</span>      = <span class="ok">true</span>
+  <span class="attr">restrict_public_buckets</span> = <span class="ok">true</span>
+}</code></pre>
+    </div>
+  </div>
+
+  <p>La correction ne supprime pas juste l'ACL publique. Elle active le mécanisme <code>public_access_block</code> d'AWS, qui est un verrou au niveau du compte : même si quelqu'un essaie d'ajouter une règle publique plus tard (par erreur ou par malice), ce verrou l'empêchera de prendre effet.</p>
+
+  <h3>Faille 2 — Security Group ouvert (CKV_AWS_24 + CKV_AWS_25)</h3>
+
+  <div class="compare-grid avoid-break">
+    <div class="compare-box vuln">
+      <div class="compare-header">❌ Code vulnérable</div>
+      <pre><code><span class="kw">ingress</span> {
+  <span class="attr">from_port</span>   = 22
+  <span class="attr">to_port</span>     = 22
+  <span class="attr">protocol</span>    = <span class="str">"tcp"</span>
+  <span class="attr">cidr_blocks</span> = [<span class="err">"0.0.0.0/0"</span>]
+  <span class="cmt"># SSH ouvert au monde entier</span>
+}
+<span class="kw">ingress</span> {
+  <span class="attr">from_port</span>   = 0
+  <span class="attr">to_port</span>     = 65535
+  <span class="attr">protocol</span>    = <span class="str">"tcp"</span>
+  <span class="attr">cidr_blocks</span> = [<span class="err">"0.0.0.0/0"</span>]
+}</code></pre>
+    </div>
+    <div class="compare-box secure">
+      <div class="compare-header">✅ Code sécurisé</div>
+      <pre><code><span class="kw">ingress</span> {
+  <span class="attr">from_port</span>   = 80
+  <span class="attr">to_port</span>     = 80
+  <span class="attr">protocol</span>    = <span class="str">"tcp"</span>
+  <span class="attr">cidr_blocks</span> = [<span class="ok">"0.0.0.0/0"</span>]
+  <span class="attr">description</span> = <span class="str">"HTTP → redirige HTTPS"</span>
+}
+<span class="kw">ingress</span> {
+  <span class="attr">from_port</span>   = 443
+  <span class="attr">to_port</span>     = 443
+  <span class="attr">protocol</span>    = <span class="str">"tcp"</span>
+  <span class="attr">cidr_blocks</span> = [<span class="ok">"0.0.0.0/0"</span>]
+  <span class="attr">description</span> = <span class="str">"HTTPS depuis internet"</span>
+}</code></pre>
+    </div>
+  </div>
+
+  <p>Un Security Group, c'est le pare-feu d'AWS. Dans le code vulnérable, on ouvre les ports 22 (SSH) et 3389 (RDP) à tout internet (<code>0.0.0.0/0</code> signifie "n'importe quelle adresse IP"). N'importe qui peut donc tenter de se connecter à nos serveurs. Dans la version corrigée, seuls les ports HTTP (80) et HTTPS (443) sont ouverts depuis internet. Le SSH n'est accessible que via un réseau privé ou un bastion.</p>
+
+  <div class="page-footer">
+    <span>Rapport de projet — Infrastructure as Code Security</span>
+    <span>Page 6</span>
+  </div>
+</div>
+
+<div class="page-break"></div>
+
+<div class="page">
+  <div class="page-header">
+    <span>IaC Security — DevSecOps BAC+4</span>
+    <span>Jedy Formation 2025-2026</span>
+  </div>
+
+  <h3>Faille 3 — RDS non sécurisé (CKV_AWS_16, CKV_AWS_17, CKV_AWS_129)</h3>
+
+  <div class="compare-grid avoid-break">
+    <div class="compare-box vuln">
+      <div class="compare-header">❌ Code vulnérable</div>
+      <pre><code><span class="kw">resource</span> <span class="str">"aws_db_instance"</span> <span class="str">"vuln_rds"</span> {
+  username          = <span class="str">"admin"</span>
+  <span class="attr">password</span>          = <span class="err">"SuperPassword123!"</span>
+  <span class="attr">storage_encrypted</span> = <span class="err">false</span>
+  <span class="attr">publicly_accessible</span> = <span class="err">true</span>
+  <span class="attr">backup_retention_period</span> = <span class="err">0</span>
+  <span class="attr">deletion_protection</span> = <span class="err">false</span>
+  <span class="attr">multi_az</span>          = <span class="err">false</span>
+}</code></pre>
+    </div>
+    <div class="compare-box secure">
+      <div class="compare-header">✅ Code sécurisé</div>
+      <pre><code><span class="kw">resource</span> <span class="str">"aws_db_instance"</span> <span class="str">"secure_rds"</span> {
+  username          = <span class="str">"dbadmin"</span>
+  <span class="attr">password</span>          = <span class="ok">var.db_password</span>
+  <span class="attr">storage_encrypted</span> = <span class="ok">true</span>
+  <span class="attr">publicly_accessible</span> = <span class="ok">false</span>
+  <span class="attr">backup_retention_period</span> = <span class="ok">7</span>
+  <span class="attr">deletion_protection</span> = <span class="ok">true</span>
+  <span class="attr">multi_az</span>          = <span class="ok">true</span>
+}</code></pre>
+    </div>
+  </div>
+
+  <p>Cette ressource RDS (Relational Database Service — c'est-à-dire une base de données MySQL dans le cloud) accumule les problèmes. Le mot de passe est en clair dans le code. La base est accessible depuis internet. Les données ne sont pas chiffrées. Il n'y a pas de backup automatique. Et si quelqu'un supprime accidentellement cette base de données, il n'y a aucune protection. La version sécurisée corrige tous ces points en quelques lignes.</p>
+
+  <h3>Faille 4 — IAM trop permissif (CKV_AWS_62, CKV_AWS_40)</h3>
+
+  <div class="compare-grid avoid-break">
+    <div class="compare-box vuln">
+      <div class="compare-header">❌ Code vulnérable</div>
+      <pre><code><span class="kw">policy</span> = jsonencode({
+  Statement = [{
+    Effect   = <span class="str">"Allow"</span>
+    <span class="attr">Action</span>   = <span class="err">"*"</span>
+    <span class="attr">Resource</span> = <span class="err">"*"</span>
+  }]
+})
+<span class="cmt"># Droits admin complets sur tout AWS</span></code></pre>
+    </div>
+    <div class="compare-box secure">
+      <div class="compare-header">✅ Code sécurisé</div>
+      <pre><code><span class="kw">policy</span> = jsonencode({
+  Statement = [{
+    Effect = <span class="str">"Allow"</span>
+    <span class="attr">Action</span> = [
+      <span class="ok">"s3:GetObject"</span>,
+      <span class="ok">"s3:ListBucket"</span>
+    ]
+    <span class="attr">Resource</span> = [
+      <span class="ok">aws_s3_bucket.bucket.arn</span>
+    ]
+  }]
+})</code></pre>
+    </div>
+  </div>
+
+  <p>C'est probablement la faille la plus dangereuse de notre démo. <code>Action = "*"</code> avec <code>Resource = "*"</code>, c'est l'équivalent d'un accès administrateur complet sur l'intégralité du compte AWS. Si cette entité est compromise, l'attaquant peut créer des ressources, supprimer des données, exfiltrer des secrets, créer de nouveaux utilisateurs. La version corrigée limite les droits à deux actions précises (<code>s3:GetObject</code> et <code>s3:ListBucket</code>) sur un seul bucket spécifique.</p>
+
+  <h2>Ce qui nous a le plus surpris</h2>
+
+  <p>Honnêtement, ce qui nous a surpris c'est la rapidité du scan. En moins de 5 secondes, Checkov avait analysé tout notre fichier et identifié 35 problèmes. Chaque problème était accompagné de son identifiant unique, d'une description claire, et d'un lien vers la documentation pour comprendre comment le corriger. On n'avait jamais vu un outil aussi direct et actionnable.</p>
+
+  <p>On a aussi été surpris par le fait que certaines règles qu'on pensait "triviales" ou "cosmétiques" ont une vraie importance de sécurité. Par exemple, <code>CKV_AWS_23</code> demande que chaque règle de Security Group ait une description. Au premier abord, ça semble accessoire. Mais sans description, impossible pour une équipe de sécurité de savoir <em>pourquoi</em> tel port est ouvert, ni si c'est intentionnel ou une erreur oubliée.</p>
+
+  <div class="page-footer">
+    <span>Rapport de projet — Infrastructure as Code Security</span>
+    <span>Page 7</span>
+  </div>
+</div>
+
+<div class="page-break"></div>
+
+<!-- ============================================================ -->
+<!--  SECTION 5 — PIPELINE                                       -->
+<!-- ============================================================ -->
+<div class="page" id="pipeline">
+  <div class="page-header">
+    <span>IaC Security — DevSecOps BAC+4</span>
+    <span>Jedy Formation 2025-2026</span>
+  </div>
+
+  <h1><span class="section-num">5</span>Le pipeline GitHub Actions — Le vigile automatique</h1>
+
+  <h2>L'idée en une image</h2>
+
+  <p>Imaginez l'entrée d'un immeuble sécurisé. Il y a un vigile. Chaque personne qui veut entrer passe devant lui. Si elle a un badge valide, elle entre. Sinon, elle est bloquée. Maintenant imaginez que ce vigile fonctionne 24h/24, 7j/7, sans jamais se fatiguer, et qu'il vérifie non seulement les badges mais aussi si la personne transporte des objets interdits.</p>
+
+  <p>C'est exactement ce que fait notre pipeline GitHub Actions. Chaque fois qu'un membre de l'équipe pousse du code sur GitHub, le "vigile" se réveille, analyse le code Terraform, et décide si le code peut continuer son chemin vers le déploiement.</p>
+
+  <div class="pipeline">
+    <div class="pipeline-step trigger">Push / PR<br>vers main</div>
+    <div class="pipeline-arrow">→</div>
+    <div class="pipeline-step scan-vuln">Scan<br>vulnerable/<br>(informatif)</div>
+    <div class="pipeline-arrow">+</div>
+    <div class="pipeline-step scan-secure">Scan<br>secure/<br>(bloquant)</div>
+    <div class="pipeline-arrow">→</div>
+    <div class="pipeline-step report">Rapport<br>JSON<br>(artifact)</div>
+  </div>
+
+  <h2>Les 3 jobs du workflow</h2>
+
+  <p>Notre pipeline contient trois jobs qui s'exécutent en parallèle (sauf le troisième qui attend les deux premiers).</p>
+
+  <h3>Job 1 — Scan du code vulnérable (non bloquant)</h3>
+
+  <p>Ce job scanne le répertoire <code>vulnerable/</code>. Les failles détectées ici sont intentionnelles — on ne veut pas que le pipeline s'arrête à cause d'elles. On utilise donc <code>|| true</code> pour que la commande retourne toujours succès, même si Checkov trouve des problèmes. C'est purement informatif, pour montrer combien de failles existent dans le code non sécurisé.</p>
+
+  <h3>Job 2 — Scan du code sécurisé (bloquant)</h3>
+
+  <p>Ce job scanne le répertoire <code>secure/</code>. Ici, si Checkov détecte une faille, le pipeline s'arrête avec une erreur. C'est le "gate qualité" : si quelqu'un modifie le code sécurisé et introduit une régression, la PR est bloquée. On ne peut pas fusionner tant que toutes les règles Checkov ne passent pas.</p>
+
+  <h3>Job 3 — Résumé comparatif</h3>
+
+  <p>Ce job s'exécute après les deux premiers (même s'ils échouent, grâce à <code>if: always()</code>). Il génère un rapport comparatif qui montre côte à côte les résultats des deux scans. Les rapports JSON sont uploadés en tant qu'artifacts GitHub (des fichiers attachés au run) et conservés pendant 30 jours.</p>
+
+  <h2>Le fichier YAML expliqué ligne par ligne</h2>
+
+  <pre><code><span class="attr">name:</span> <span class="str">IaC Security - Checkov SAST Scan</span>
+
+<span class="kw">on:</span>                          <span class="cmt"># Quand le pipeline se déclenche</span>
+  <span class="attr">push:</span>
+    <span class="attr">branches:</span> [<span class="str">main</span>]          <span class="cmt"># Sur chaque push vers main</span>
+  <span class="attr">pull_request:</span>
+    <span class="attr">branches:</span> [<span class="str">main</span>]          <span class="cmt"># Sur chaque PR vers main</span>
+
+<span class="kw">jobs:</span>
+  <span class="attr">checkov-vulnerable:</span>
+    <span class="attr">runs-on:</span> ubuntu-latest     <span class="cmt"># Machine Linux gratuite GitHub</span>
+    <span class="kw">steps:</span>
+      - <span class="attr">uses:</span> actions/checkout@v4  <span class="cmt"># Télécharge le code</span>
+      - <span class="attr">uses:</span> actions/setup-python@v5
+        <span class="attr">with:</span>
+          <span class="attr">python-version:</span> <span class="str">"3.11"</span>
+      - <span class="attr">run:</span> pip install checkov  <span class="cmt"># Installe Checkov</span>
+      - <span class="attr">run:</span> |
+          checkov -d vulnerable/ \
+            --compact \
+            --output json \
+            --output-file-path vulnerable-report \
+            <span class="err">|| true</span>  <span class="cmt"># NE BLOQUE PAS (vulns intentionnelles)</span>
+
+  <span class="attr">checkov-secure:</span>
+    <span class="attr">runs-on:</span> ubuntu-latest
+    <span class="kw">steps:</span>
+      <span class="cmt"># [setup identique...]</span>
+      - <span class="attr">run:</span> |
+          checkov -d secure/ \
+            --compact \
+            --output json \
+            --output-file-path secure-report
+          <span class="cmt"># PAS de || true : bloque si faille détectée</span></code></pre>
+
+  <h2>La différence entre les deux scans, c'est juste <code>|| true</code></h2>
+
+  <p>Ce petit détail est au cœur de notre stratégie. En bash, <code>|| true</code> signifie "si la commande précédente échoue, retourne quand même succès". C'est ce qui permet au pipeline de continuer même quand Checkov trouve des problèmes dans le code vulnérable. Sur le code sécurisé, on retire ce <code>|| true</code> : toute faille devient bloquante. C'est le principe du "quality gate" en intégration continue.</p>
+
+  <div class="page-footer">
+    <span>Rapport de projet — Infrastructure as Code Security</span>
+    <span>Page 8</span>
+  </div>
+</div>
+
+<div class="page-break"></div>
+
+<!-- ============================================================ -->
+<!--  SECTION 6 — MOINDRE PRIVILÈGE                              -->
+<!-- ============================================================ -->
+<div class="page" id="moindre-privilege">
+  <div class="page-header">
+    <span>IaC Security — DevSecOps BAC+4</span>
+    <span>Jedy Formation 2025-2026</span>
+  </div>
+
+  <h1><span class="section-num">6</span>Le principe du moindre privilège</h1>
+
+  <p>C'est un des concepts les plus importants en sécurité informatique, et c'est aussi l'un de ceux qu'on comprend le mieux avec une analogie concrète.</p>
+
+  <h2>L'analogie du trousseau de clés</h2>
+
+  <p>Imaginez un immeuble de bureaux. Il y a plusieurs types de personnes qui y travaillent : des employés, des managers, des agents d'entretien, des visiteurs. Chacun a besoin d'accéder à des zones différentes.</p>
+
+  <p>Un agent d'entretien n'a pas besoin des clés du coffre-fort de la direction. Il a besoin des clés des toilettes, des couloirs, et peut-être de la salle de pause. Si on lui donne le passe-partout général pour qu'il soit "plus à l'aise", on crée un risque : si ce trousseau est perdu ou volé, quelqu'un peut accéder à tout l'immeuble.</p>
+
+  <p>En sécurité informatique, c'est exactement pareil. Le <strong>principe du moindre privilège</strong> (Least Privilege Principle) dit qu'une entité — que ce soit un utilisateur, un service, ou un programme — ne doit avoir accès qu'aux ressources dont elle a strictement besoin pour remplir sa fonction. Pas plus.</p>
+
+  <h2>Comment ça se traduit en Terraform avec IAM</h2>
+
+  <p>IAM (Identity and Access Management) est le système de gestion des droits d'AWS. Avec IAM, on définit qui peut faire quoi sur quelles ressources. Les permissions sont définies via des "politiques" (policies) écrites en JSON.</p>
+
+  <p>Dans notre code vulnérable, on a écrit la politique la plus permissive possible :</p>
+
+  <pre><code><span class="cmt"># VERSION DANGEREUSE — Action wildcard</span>
+{
+  <span class="attr">"Statement"</span>: [{
+    <span class="attr">"Effect"</span>:   <span class="str">"Allow"</span>,
+    <span class="attr">"Action"</span>:   <span class="err">"*"</span>,       <span class="cmt">// TOUS les services AWS</span>
+    <span class="attr">"Resource"</span>: <span class="err">"*"</span>        <span class="cmt">// TOUTES les ressources</span>
+  }]
+}</code></pre>
+
+  <p>Le symbole <code>*</code> est un wildcard — en informatique, c'est le caractère "joker" qui signifie "tout". <code>Action = "*"</code> signifie que l'entité peut faire n'importe quelle action sur n'importe quel service AWS : créer des instances EC2, supprimer des bases de données, modifier des règles de sécurité, exfiltrer des données S3... C'est l'équivalent du passe-partout général de tout l'immeuble.</p>
+
+  <p>Dans le code sécurisé, on applique le principe du moindre privilège :</p>
+
+  <pre><code><span class="cmt"># VERSION SÉCURISÉE — Actions minimales sur ressource précise</span>
+{
+  <span class="attr">"Statement"</span>: [
+    {
+      <span class="attr">"Sid"</span>:      <span class="str">"S3ReadOnlyAccess"</span>,
+      <span class="attr">"Effect"</span>:   <span class="str">"Allow"</span>,
+      <span class="attr">"Action"</span>:   [<span class="ok">"s3:GetObject"</span>, <span class="ok">"s3:ListBucket"</span>],
+      <span class="attr">"Resource"</span>: [
+        <span class="ok">"arn:aws:s3:::iac-security-demo-secure-bucket"</span>,
+        <span class="ok">"arn:aws:s3:::iac-security-demo-secure-bucket/*"</span>
+      ]
+    },
+    {
+      <span class="attr">"Sid"</span>:      <span class="str">"CloudWatchLogsWrite"</span>,
+      <span class="attr">"Effect"</span>:   <span class="str">"Allow"</span>,
+      <span class="attr">"Action"</span>:   [
+        <span class="ok">"logs:CreateLogGroup"</span>,
+        <span class="ok">"logs:CreateLogStream"</span>,
+        <span class="ok">"logs:PutLogEvents"</span>
+      ],
+      <span class="attr">"Resource"</span>: <span class="ok">"arn:aws:logs:eu-west-1:*:log-group:/app/iac-*"</span>
+    }
+  ]
+}</code></pre>
+
+  <p>On liste exactement les deux choses que cette entité doit pouvoir faire : lire des fichiers dans un bucket S3 précis, et écrire des logs CloudWatch pour un groupe de logs spécifique. Rien de plus. Si cette entité est compromise, l'attaquant ne peut qu'accéder à ce bucket et à ces logs. Le reste du compte AWS est protégé.</p>
+
+  <h2>Politiques sur les rôles, pas sur les utilisateurs</h2>
+
+  <p>Un autre point important : dans le code vulnérable, on attache la politique directement à un utilisateur IAM. Dans le code sécurisé, on l'attache à un <strong>rôle IAM</strong>. La différence, c'est que les rôles sont temporaires et sont assumés par des services (comme EC2 ou Lambda). Si un rôle est compromis, ses droits expirent automatiquement. Un utilisateur IAM avec une clé d'accès permanente, c'est un risque qui dure tant que la clé n'est pas révoquée.</p>
+
+  <div class="callout success">
+    <strong>Bonne pratique IAM résumée</strong>
+    Toujours lister les actions nécessaires explicitement (jamais de <code>*</code> en production). Toujours préciser les ressources concernées. Utiliser des rôles IAM plutôt que des utilisateurs. Activer la rotation des clés d'accès. Faire des revues de droits régulières.
+  </div>
+
+  <div class="page-footer">
+    <span>Rapport de projet — Infrastructure as Code Security</span>
+    <span>Page 9</span>
+  </div>
+</div>
+
+<div class="page-break"></div>
+
+<!-- ============================================================ -->
+<!--  SECTION 7 — CE QU'ON A APPRIS                              -->
+<!-- ============================================================ -->
+<div class="page" id="bilan">
+  <div class="page-header">
+    <span>IaC Security — DevSecOps BAC+4</span>
+    <span>Jedy Formation 2025-2026</span>
+  </div>
+
+  <h1><span class="section-num">7</span>Ce qu'on a appris et les limites de l'outil</h1>
+
+  <h2>Ce qui a bien marché</h2>
+
+  <p>La partie technique s'est déroulée sans grande surprise. Checkov est vraiment facile à prendre en main. L'installation prend trente secondes, le premier scan prend moins d'une minute. Le rapport est clair, les règles sont bien documentées, et les liens vers les guides de correction sont utiles.</p>
+
+  <p>Le pipeline GitHub Actions a aussi fonctionné dès le premier essai. La logique avec et sans <code>|| true</code> pour différencier les scans bloquants et non-bloquants est simple et efficace. On a trouvé cette approche élégante : le même outil, les mêmes commandes, mais une décision différente sur le comportement en cas d'échec.</p>
+
+  <p>On a aussi vraiment apprécié le fait de travailler avec de la vraie infrastructure AWS (même simulée). Comprendre ce que signifie un Security Group, ce qu'est un bucket S3, comment IAM fonctionne... tout ça n'est pas évident au départ quand on n'a jamais travaillé avec AWS. Ce projet nous a forcés à comprendre les concepts avant d'écrire la configuration.</p>
+
+  <h2>Ce qui était plus difficile que prévu</h2>
+
+  <p>La partie la plus difficile n'était pas technique. C'était de <strong>comprendre pourquoi</strong> certaines règles Checkov existent. Par exemple, <code>CKV_AWS_144</code> vérifie que les buckets S3 ont de la réplication cross-région. Au début, on trouvait ça excessif pour un projet de démo. Puis on a réalisé que dans un contexte de production, si la région AWS Paris tombe en panne, les données sont perdues sans réplication. Ce projet nous a appris à ne pas traiter les règles de sécurité comme des contraintes arbitraires, mais à comprendre le risque derrière chacune d'elles.</p>
+
+  <p>On a aussi eu du mal avec les <strong>faux positifs</strong>. Quelques règles Checkov ne s'appliquaient pas à notre contexte mais étaient quand même déclenchées. Gérer ça proprement (avec des skip comments ou des fichiers de configuration Checkov) aurait demandé plus de temps qu'on ne l'avait prévu.</p>
+
+  <h2>Les limites de Checkov</h2>
+
+  <p>Il serait malhonnête de présenter Checkov comme une solution complète à tous les problèmes de sécurité IaC. Il a des limites importantes.</p>
+
+  <p><strong>Limite 1 : Il n'analyse que le code statique.</strong> Checkov lit les fichiers <code>.tf</code> et vérifie leur contenu. Il ne sait pas ce qui est réellement déployé sur AWS. Si quelqu'un modifie la configuration d'un Security Group directement via la console AWS sans toucher au code Terraform, Checkov ne verra rien. Pour détecter ce type de dérive (drift), il faut des outils complémentaires comme AWS Config, Terraform Cloud Sentinel, ou driftctl.</p>
+
+  <p><strong>Limite 2 : Il ne comprend pas le contexte métier.</strong> Checkov applique des règles génériques. Il ne sait pas que votre bucket S3 contient des images publiques de produits (et doit donc être public) ou des sauvegardes de bases de données (qui doivent être privées). Il faut configurer des exceptions manuellement, ce qui demande une connaissance fine de l'outil.</p>
+
+  <p><strong>Limite 3 : La qualité des règles varie.</strong> Certaines règles sont très bien calibrées. D'autres sont trop permissives ou trop strictes selon le contexte. Un outil seul ne remplace pas une revue humaine du code par un ingénieur sécurité expérimenté.</p>
+
+  <p><strong>Limite 4 : Il ne détecte pas les vulnérabilités logiques.</strong> Si la logique métier d'une application crée une faille de sécurité (accès à des données d'un autre utilisateur, par exemple), Checkov n'y verra rien. Ce sont des failles qui demandent des tests de sécurité applicatifs (DAST, pentest), pas de l'analyse statique IaC.</p>
+
+  <h2>Ce qu'on ferait différemment si on recommençait</h2>
+
+  <p>Si on recommençait ce projet, on irait plus loin sur deux points. D'abord, on testerait l'<strong>intégration avec Terraform Cloud</strong> pour faire tourner Checkov directement dans le plan Terraform avant l'apply, pas juste dans le CI/CD GitHub. C'est une approche encore plus shift-left.</p>
+
+  <p>Ensuite, on ajouterait un outil de <strong>détection de drift</strong> pour montrer la différence entre ce qu'on a dans le code et ce qui est réellement déployé. C'est un vrai angle mort de Checkov qu'on n'a pas eu le temps de traiter.</p>
+
+  <div class="page-footer">
+    <span>Rapport de projet — Infrastructure as Code Security</span>
+    <span>Page 10</span>
+  </div>
+</div>
+
+<div class="page-break"></div>
+
+<!-- ============================================================ -->
+<!--  SECTION 8 — CONCLUSION                                     -->
+<!-- ============================================================ -->
+<div class="page" id="conclusion">
+  <div class="page-header">
+    <span>IaC Security — DevSecOps BAC+4</span>
+    <span>Jedy Formation 2025-2026</span>
+  </div>
+
+  <h1><span class="section-num">8</span>Conclusion</h1>
+
+  <p>En commençant ce projet, on avait une vision un peu abstraite de ce que voulait dire "sécuriser l'infrastructure". On pensait que c'était réservé à des experts en sécurité avec des années d'expérience, des outils complexes, et des certifications spécialisées.</p>
+
+  <p>Trois semaines plus tard, notre point de vue a changé.</p>
+
+  <p>La sécurité de l'infrastructure cloud, c'est d'abord une question de configuration. Et la configuration, ça s'analyse. Checkov a mis moins de 5 secondes pour trouver 35 problèmes dans notre fichier. Des problèmes qui, en production, auraient pu exposer des données utilisateurs, permettre une intrusion dans nos systèmes, ou donner à un attaquant les clés d'un compte AWS entier.</p>
+
+  <p>Ce qui nous a le plus frappés, c'est la différence entre le coût de la prévention et le coût de l'incident. Un scan Checkov coûte 5 secondes et quelques centimes de temps de calcul dans GitHub Actions. L'incident Capital One a coûté 80 millions de dollars d'amende, plus les dommages réputationnels, plus les recours juridiques. La balance est évidente.</p>
+
+  <blockquote>
+    "Security as Code, ce n'est pas une tendance. C'est une réponse concrète à un problème concret : les infrastructures cloud se déploient vite, à grande échelle, et une erreur de configuration se réplique aussi vite que le code lui-même."
+  </blockquote>
+
+  <p>Ce projet nous a aussi confirmé quelque chose qu'on entend souvent dans le cursus DevSecOps : la sécurité n'est pas un département séparé, c'est une responsabilité partagée. Un développeur qui écrit du code Terraform peut, avec des outils accessibles et gratuits, détecter et corriger des failles de sécurité avant que son code n'atteigne la production. C'est ça, le DevSecOps en pratique.</p>
+
+  <p>On repart de ce projet avec une compétence concrète (configurer un pipeline Checkov + GitHub Actions), une meilleure compréhension de l'écosystème AWS (IAM, S3, RDS, Security Groups), et surtout une façon différente de lire le code : en se demandant toujours, "si quelqu'un exploite cette configuration, que peut-il faire ?"</p>
+
+  <p>Et pour répondre à la question posée en introduction : comment Capital One aurait pu éviter la catastrophe de 2019 ? Avec un pipeline exactement comme celui qu'on a construit dans ce projet. Une règle de sécurité manquante, détectée automatiquement, corrigée avant le déploiement. C'est simple. C'est accessible. Et ça fonctionne.</p>
+
+  <div class="callout success">
+    <strong>Ce projet en chiffres</strong>
+    35 failles détectées par Checkov sur le code vulnérable · 4 familles de vulnérabilités corrigées · 3 jobs dans le pipeline CI/CD · 1 rapport JSON uploadé en artifact · 0 euro de coût (tout open source et gratuit)
+  </div>
+
+  <hr>
+
+  <h2>Remerciements</h2>
+
+  <p>Nous remercions notre formateur <strong>Kalidou DIA</strong> pour ses retours et son accompagnement tout au long de ce projet. Les sujets proposés par Jedy Formation ont le mérite de nous confronter à des cas réels plutôt qu'à des exercices artificiels. Le sujet 07 sur l'IaC Security est particulièrement représentatif des défis rencontrés dans l'industrie aujourd'hui.</p>
+
+  <div class="page-footer">
+    <span>Rapport de projet — Infrastructure as Code Security</span>
+    <span>Page 11</span>
+  </div>
+</div>
+
+<div class="page-break"></div>
+
+<!-- ============================================================ -->
+<!--  ANNEXES                                                     -->
+<!-- ============================================================ -->
+<div class="page" id="annexes">
+  <div class="page-header">
+    <span>IaC Security — DevSecOps BAC+4</span>
+    <span>Jedy Formation 2025-2026</span>
+  </div>
+
+  <h1>Annexes</h1>
+
+  <h2>Annexe A — Code complet : vulnerable/main.tf</h2>
+
+  <pre><code><span class="cmt"># =============================================================
+# FICHIER VOLONTAIREMENT VULNÉRABLE - usage pédagogique
+# Détecté par Checkov (outil SAST pour Terraform)
+# =============================================================</span>
+
+<span class="kw">terraform</span> {
+  required_providers {
+    aws = {
+      source  = <span class="str">"hashicorp/aws"</span>
+      version = <span class="str">"~> 5.0"</span>
+    }
+  }
+}
+
+<span class="kw">provider</span> <span class="str">"aws"</span> {
+  region = <span class="str">"eu-west-1"</span>
+}
+
+<span class="cmt"># VULNÉRABILITÉ 1 — CKV_AWS_20 : Bucket S3 public</span>
+<span class="kw">resource</span> <span class="str">"aws_s3_bucket"</span> <span class="str">"vulnerable_bucket"</span> {
+  bucket = <span class="str">"my-super-vulnerable-bucket-demo"</span>
+  tags   = { Name = <span class="str">"VulnerableBucket"</span> }
+}
+
+<span class="kw">resource</span> <span class="str">"aws_s3_bucket_acl"</span> <span class="str">"vulnerable_acl"</span> {
+  bucket = aws_s3_bucket.vulnerable_bucket.id
+  <span class="attr">acl</span>    = <span class="err">"public-read"</span>  <span class="cmt"># DANGER</span>
+}
+
+<span class="kw">resource</span> <span class="str">"aws_s3_bucket_versioning"</span> <span class="str">"vulnerable_versioning"</span> {
+  bucket = aws_s3_bucket.vulnerable_bucket.id
+  versioning_configuration {
+    status = <span class="err">"Disabled"</span>  <span class="cmt"># VULN CKV_AWS_52</span>
+  }
+}
+
+<span class="cmt"># VULNÉRABILITÉ 2 — CKV_AWS_24 : Security Group ouvert</span>
+<span class="kw">resource</span> <span class="str">"aws_security_group"</span> <span class="str">"vulnerable_sg"</span> {
+  name = <span class="str">"vulnerable-sg"</span>
+  ingress {
+    from_port   = 22
+    to_port     = 22
+    protocol    = <span class="str">"tcp"</span>
+    cidr_blocks = [<span class="err">"0.0.0.0/0"</span>]  <span class="cmt"># SSH ouvert</span>
+  }
+  ingress {
+    from_port   = 3389
+    to_port     = 3389
+    protocol    = <span class="str">"tcp"</span>
+    cidr_blocks = [<span class="err">"0.0.0.0/0"</span>]  <span class="cmt"># RDP ouvert</span>
+  }
+  ingress {
+    from_port   = 0
+    to_port     = 65535
+    protocol    = <span class="str">"tcp"</span>
+    cidr_blocks = [<span class="err">"0.0.0.0/0"</span>]  <span class="cmt"># Tous ports</span>
+  }
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = <span class="str">"-1"</span>
+    cidr_blocks = [<span class="err">"0.0.0.0/0"</span>]
+  }
+}
+
+<span class="cmt"># VULNÉRABILITÉ 3 — CKV_AWS_16 + CKV_AWS_17 : RDS non sécurisé</span>
+<span class="kw">resource</span> <span class="str">"aws_db_instance"</span> <span class="str">"vulnerable_rds"</span> {
+  engine            = <span class="str">"mysql"</span>
+  engine_version    = <span class="str">"8.0"</span>
+  instance_class    = <span class="str">"db.t3.micro"</span>
+  allocated_storage = 20
+  username          = <span class="str">"admin"</span>
+  <span class="attr">password</span>          = <span class="err">"SuperPassword123!"</span>  <span class="cmt"># DANGER</span>
+  <span class="attr">storage_encrypted</span> = <span class="err">false</span>               <span class="cmt"># VULN CKV_AWS_16</span>
+  <span class="attr">publicly_accessible</span> = <span class="err">true</span>             <span class="cmt"># VULN CKV_AWS_17</span>
+  <span class="attr">backup_retention_period</span> = <span class="err">0</span>            <span class="cmt"># VULN CKV_AWS_129</span>
+  <span class="attr">deletion_protection</span> = <span class="err">false</span>            <span class="cmt"># VULN CKV_AWS_133</span>
+  multi_az            = <span class="err">false</span>
+  skip_final_snapshot = true
+}
+
+<span class="cmt"># VULNÉRABILITÉ 4 — CKV_AWS_62 : IAM trop permissif</span>
+<span class="kw">resource</span> <span class="str">"aws_iam_policy"</span> <span class="str">"vulnerable_policy"</span> {
+  name = <span class="str">"VulnerableAdminPolicy"</span>
+  policy = jsonencode({
+    Version = <span class="str">"2012-10-17"</span>
+    Statement = [{
+      Effect   = <span class="str">"Allow"</span>
+      <span class="attr">Action</span>   = <span class="err">"*"</span>   <span class="cmt"># DANGER</span>
+      <span class="attr">Resource</span> = <span class="err">"*"</span>   <span class="cmt"># DANGER</span>
+    }]
+  })
+}
+
+<span class="kw">resource</span> <span class="str">"aws_iam_user"</span> <span class="str">"vulnerable_user"</span> {
+  name = <span class="str">"vulnerable-user"</span>
+}
+
+<span class="kw">resource</span> <span class="str">"aws_iam_user_policy_attachment"</span> <span class="str">"vulnerable_attachment"</span> {
+  user       = aws_iam_user.vulnerable_user.name
+  policy_arn = aws_iam_policy.vulnerable_policy.arn
+}</code></pre>
+
+  <div class="page-footer">
+    <span>Rapport de projet — Infrastructure as Code Security</span>
+    <span>Page 12</span>
+  </div>
+</div>
+
+<div class="page-break"></div>
+
+<div class="page">
+  <div class="page-header">
+    <span>IaC Security — DevSecOps BAC+4</span>
+    <span>Jedy Formation 2025-2026</span>
+  </div>
+
+  <h2>Annexe B — Code complet : secure/main.tf</h2>
+
+  <pre><code><span class="cmt"># =============================================================
+# FICHIER SÉCURISÉ - Bonnes pratiques CIS AWS
+# =============================================================</span>
+
+<span class="kw">variable</span> <span class="str">"db_password"</span> {
+  description = <span class="str">"Mot de passe RDS"</span>
+  type        = string
+  <span class="attr">sensitive</span>   = <span class="ok">true</span>  <span class="cmt"># Masqué dans les logs</span>
+}
+
+<span class="cmt"># FIX 1 — S3 privé + chiffrement + versioning</span>
+<span class="kw">resource</span> <span class="str">"aws_s3_bucket"</span> <span class="str">"secure_bucket"</span> {
+  bucket = <span class="str">"iac-security-demo-secure-bucket"</span>
+}
+
+<span class="kw">resource</span> <span class="str">"aws_s3_bucket_public_access_block"</span> <span class="str">"pab"</span> {
+  bucket                  = aws_s3_bucket.secure_bucket.id
+  <span class="attr">block_public_acls</span>       = <span class="ok">true</span>
+  <span class="attr">block_public_policy</span>     = <span class="ok">true</span>
+  <span class="attr">ignore_public_acls</span>      = <span class="ok">true</span>
+  <span class="attr">restrict_public_buckets</span> = <span class="ok">true</span>
+}
+
+<span class="kw">resource</span> <span class="str">"aws_s3_bucket_server_side_encryption_configuration"</span> <span class="str">"sse"</span> {
+  bucket = aws_s3_bucket.secure_bucket.id
+  rule {
+    apply_server_side_encryption_by_default {
+      <span class="attr">sse_algorithm</span> = <span class="ok">"AES256"</span>
+    }
+  }
+}
+
+<span class="kw">resource</span> <span class="str">"aws_s3_bucket_versioning"</span> <span class="str">"versioning"</span> {
+  bucket = aws_s3_bucket.secure_bucket.id
+  versioning_configuration { status = <span class="ok">"Enabled"</span> }
+}
+
+<span class="cmt"># FIX 2 — Security Group ports 80/443 uniquement</span>
+<span class="kw">resource</span> <span class="str">"aws_security_group"</span> <span class="str">"secure_sg"</span> {
+  name        = <span class="str">"secure-sg"</span>
+  description = <span class="str">"HTTP/HTTPS uniquement depuis internet"</span>
+  ingress {
+    from_port   = 80
+    to_port     = 80
+    protocol    = <span class="str">"tcp"</span>
+    cidr_blocks = [<span class="ok">"0.0.0.0/0"</span>]
+    <span class="attr">description</span> = <span class="ok">"HTTP → redirige HTTPS"</span>
+  }
+  ingress {
+    from_port   = 443
+    to_port     = 443
+    protocol    = <span class="str">"tcp"</span>
+    cidr_blocks = [<span class="ok">"0.0.0.0/0"</span>]
+    <span class="attr">description</span> = <span class="ok">"HTTPS depuis internet"</span>
+  }
+}
+
+<span class="cmt"># FIX 3 — RDS chiffré, privé, avec backups</span>
+<span class="kw">resource</span> <span class="str">"aws_db_instance"</span> <span class="str">"secure_rds"</span> {
+  engine            = <span class="str">"mysql"</span>
+  engine_version    = <span class="str">"8.0"</span>
+  instance_class    = <span class="str">"db.t3.micro"</span>
+  username          = <span class="str">"dbadmin"</span>
+  <span class="attr">password</span>          = <span class="ok">var.db_password</span>     <span class="cmt"># Variable sensible</span>
+  <span class="attr">storage_encrypted</span> = <span class="ok">true</span>               <span class="cmt"># Chiffrement activé</span>
+  <span class="attr">publicly_accessible</span> = <span class="ok">false</span>           <span class="cmt"># Non exposé</span>
+  <span class="attr">backup_retention_period</span> = <span class="ok">7</span>           <span class="cmt"># 7 jours de backup</span>
+  <span class="attr">deletion_protection</span> = <span class="ok">true</span>            <span class="cmt"># Protection suppression</span>
+  <span class="attr">multi_az</span>            = <span class="ok">true</span>            <span class="cmt"># Haute disponibilité</span>
+}
+
+<span class="cmt"># FIX 4 — IAM minimal privilege sur ressource précise</span>
+<span class="kw">resource</span> <span class="str">"aws_iam_policy"</span> <span class="str">"secure_policy"</span> {
+  name = <span class="str">"SecureMinimalPolicy"</span>
+  policy = jsonencode({
+    Version = <span class="str">"2012-10-17"</span>
+    Statement = [
+      {
+        Sid    = <span class="str">"S3ReadOnly"</span>
+        Effect = <span class="str">"Allow"</span>
+        <span class="attr">Action</span> = [<span class="ok">"s3:GetObject"</span>, <span class="ok">"s3:ListBucket"</span>]
+        <span class="attr">Resource</span> = [aws_s3_bucket.secure_bucket.arn]
+      },
+      {
+        Sid    = <span class="str">"CloudWatchWrite"</span>
+        Effect = <span class="str">"Allow"</span>
+        <span class="attr">Action</span> = [
+          <span class="ok">"logs:CreateLogGroup"</span>,
+          <span class="ok">"logs:CreateLogStream"</span>,
+          <span class="ok">"logs:PutLogEvents"</span>
+        ]
+        <span class="attr">Resource</span> = <span class="ok">"arn:aws:logs:eu-west-1:*:log-group:/app/*"</span>
+      }
+    ]
+  })
+}
+
+<span class="kw">resource</span> <span class="str">"aws_iam_role"</span> <span class="str">"secure_role"</span> {
+  name = <span class="str">"iac-security-demo-secure-role"</span>
+  assume_role_policy = jsonencode({
+    Version = <span class="str">"2012-10-17"</span>
+    Statement = [{
+      Action    = <span class="str">"sts:AssumeRole"</span>
+      Effect    = <span class="str">"Allow"</span>
+      Principal = { Service = <span class="str">"ec2.amazonaws.com"</span> }
+    }]
+  })
+}
+
+<span class="kw">resource</span> <span class="str">"aws_iam_role_policy_attachment"</span> <span class="str">"attachment"</span> {
+  role       = aws_iam_role.secure_role.name
+  policy_arn = aws_iam_policy.secure_policy.arn
+}</code></pre>
+
+  <div class="page-footer">
+    <span>Rapport de projet — Infrastructure as Code Security</span>
+    <span>Page 13</span>
+  </div>
+</div>
+
+<div class="page-break"></div>
+
+<div class="page">
+  <div class="page-header">
+    <span>IaC Security — DevSecOps BAC+4</span>
+    <span>Jedy Formation 2025-2026</span>
+  </div>
+
+  <h2>Annexe C — Workflow GitHub Actions complet</h2>
+
+  <pre><code><span class="attr">name:</span> <span class="str">IaC Security - Checkov SAST Scan</span>
+
+<span class="kw">on:</span>
+  <span class="attr">push:</span>
+    <span class="attr">branches:</span> [<span class="str">main</span>]
+  <span class="attr">pull_request:</span>
+    <span class="attr">branches:</span> [<span class="str">main</span>]
+
+<span class="attr">permissions:</span>
+  <span class="attr">contents:</span> read
+  <span class="attr">security-events:</span> write
+
+<span class="kw">jobs:</span>
+  <span class="attr">checkov-vulnerable:</span>
+    <span class="attr">name:</span> <span class="str">"Scan Vulnerable IaC (non-bloquant)"</span>
+    <span class="attr">runs-on:</span> ubuntu-latest
+    <span class="kw">steps:</span>
+      - <span class="attr">uses:</span> actions/checkout@v4
+      - <span class="attr">uses:</span> actions/setup-python@v5
+        <span class="attr">with:</span>
+          <span class="attr">python-version:</span> <span class="str">"3.11"</span>
+      - <span class="attr">run:</span> pip install checkov
+      - <span class="attr">run:</span> |
+          checkov -d vulnerable/ \
+            --compact \
+            --output json \
+            --output-file-path vulnerable-report \
+            <span class="err">|| true</span>
+          checkov -d vulnerable/ --compact || true
+      - <span class="attr">uses:</span> actions/upload-artifact@v4
+        <span class="attr">if:</span> always()
+        <span class="attr">with:</span>
+          <span class="attr">name:</span> checkov-vulnerable-report
+          <span class="attr">path:</span> vulnerable-report/
+          <span class="attr">retention-days:</span> 30
+
+  <span class="attr">checkov-secure:</span>
+    <span class="attr">name:</span> <span class="str">"Scan Secure IaC (bloquant)"</span>
+    <span class="attr">runs-on:</span> ubuntu-latest
+    <span class="kw">steps:</span>
+      - <span class="attr">uses:</span> actions/checkout@v4
+      - <span class="attr">uses:</span> actions/setup-python@v5
+        <span class="attr">with:</span>
+          <span class="attr">python-version:</span> <span class="str">"3.11"</span>
+      - <span class="attr">run:</span> pip install checkov
+      - <span class="attr">run:</span> |
+          checkov -d secure/ \
+            --compact \
+            --output json \
+            --output-file-path secure-report
+          checkov -d secure/ --compact
+      - <span class="attr">uses:</span> actions/upload-artifact@v4
+        <span class="attr">if:</span> always()
+        <span class="attr">with:</span>
+          <span class="attr">name:</span> checkov-secure-report
+          <span class="attr">path:</span> secure-report/
+          <span class="attr">retention-days:</span> 30
+
+  <span class="attr">security-summary:</span>
+    <span class="attr">name:</span> <span class="str">"Résumé de sécurité"</span>
+    <span class="attr">runs-on:</span> ubuntu-latest
+    <span class="attr">needs:</span> [checkov-vulnerable, checkov-secure]
+    <span class="attr">if:</span> always()
+    <span class="kw">steps:</span>
+      - <span class="attr">uses:</span> actions/checkout@v4
+      - <span class="attr">uses:</span> actions/setup-python@v5
+        <span class="attr">with:</span>
+          <span class="attr">python-version:</span> <span class="str">"3.11"</span>
+      - <span class="attr">run:</span> pip install checkov
+      - <span class="attr">run:</span> |
+          checkov -d vulnerable/ --compact --quiet 2>/dev/null || true
+          checkov -d secure/ --compact --quiet 2>/dev/null || true</code></pre>
+
+  <div class="page-footer">
+    <span>Rapport de projet — Infrastructure as Code Security</span>
+    <span>Page 14</span>
+  </div>
+</div>
+
+<div class="page-break"></div>
+
+<div class="page">
+  <div class="page-header">
+    <span>IaC Security — DevSecOps BAC+4</span>
+    <span>Jedy Formation 2025-2026</span>
+  </div>
+
+  <h2>Annexe D — Les 35 failles détectées par Checkov</h2>
+
+  <p>Résultats du scan <code>checkov -f vulnerable/main.tf --compact</code> :</p>
+
+  <table>
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>ID Checkov</th>
+        <th>Ressource</th>
+        <th>Description</th>
+        <th>Sévérité</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td>1</td><td>CKV_AWS_20</td><td>aws_s3_bucket</td><td>ACL public-read sur le bucket</td><td><span class="badge critical">CRITICAL</span></td></tr>
+      <tr><td>2</td><td>CKV_AWS_19</td><td>aws_s3_bucket</td><td>Pas de chiffrement au repos</td><td><span class="badge high">HIGH</span></td></tr>
+      <tr><td>3</td><td>CKV_AWS_21</td><td>aws_s3_bucket</td><td>Versioning désactivé</td><td><span class="badge medium">MEDIUM</span></td></tr>
+      <tr><td>4</td><td>CKV_AWS_52</td><td>aws_s3_bucket_versioning</td><td>MFA Delete non activé</td><td><span class="badge medium">MEDIUM</span></td></tr>
+      <tr><td>5</td><td>CKV_AWS_145</td><td>aws_s3_bucket</td><td>Pas de chiffrement KMS</td><td><span class="badge high">HIGH</span></td></tr>
+      <tr><td>6</td><td>CKV_AWS_18</td><td>aws_s3_bucket</td><td>Access logging non activé</td><td><span class="badge medium">MEDIUM</span></td></tr>
+      <tr><td>7</td><td>CKV_AWS_144</td><td>aws_s3_bucket</td><td>Réplication cross-région absente</td><td><span class="badge medium">MEDIUM</span></td></tr>
+      <tr><td>8</td><td>CKV2_AWS_6</td><td>aws_s3_bucket</td><td>Public access block absent</td><td><span class="badge high">HIGH</span></td></tr>
+      <tr><td>9</td><td>CKV2_AWS_61</td><td>aws_s3_bucket</td><td>Pas de lifecycle configuration</td><td><span class="badge low">LOW</span></td></tr>
+      <tr><td>10</td><td>CKV2_AWS_62</td><td>aws_s3_bucket</td><td>Pas de notifications d'événements</td><td><span class="badge low">LOW</span></td></tr>
+      <tr><td>11</td><td>CKV_AWS_24</td><td>aws_security_group</td><td>SSH (port 22) ouvert sur 0.0.0.0/0</td><td><span class="badge critical">CRITICAL</span></td></tr>
+      <tr><td>12</td><td>CKV_AWS_25</td><td>aws_security_group</td><td>RDP (port 3389) ouvert sur 0.0.0.0/0</td><td><span class="badge critical">CRITICAL</span></td></tr>
+      <tr><td>13</td><td>CKV_AWS_23</td><td>aws_security_group</td><td>Règles SG sans description</td><td><span class="badge low">LOW</span></td></tr>
+      <tr><td>14</td><td>CKV_AWS_382</td><td>aws_security_group</td><td>Egress tout ouvert (0.0.0.0/0 port -1)</td><td><span class="badge high">HIGH</span></td></tr>
+      <tr><td>15</td><td>CKV2_AWS_5</td><td>aws_security_group</td><td>SG non attaché à une ressource</td><td><span class="badge medium">MEDIUM</span></td></tr>
+      <tr><td>16</td><td>CKV_AWS_16</td><td>aws_db_instance</td><td>RDS storage_encrypted = false</td><td><span class="badge high">HIGH</span></td></tr>
+      <tr><td>17</td><td>CKV_AWS_17</td><td>aws_db_instance</td><td>RDS publicly_accessible = true</td><td><span class="badge critical">CRITICAL</span></td></tr>
+      <tr><td>18</td><td>CKV_AWS_129</td><td>aws_db_instance</td><td>Backup retention = 0</td><td><span class="badge medium">MEDIUM</span></td></tr>
+      <tr><td>19</td><td>CKV_AWS_133</td><td>aws_db_instance</td><td>deletion_protection = false</td><td><span class="badge medium">MEDIUM</span></td></tr>
+      <tr><td>20</td><td>CKV_AWS_161</td><td>aws_db_instance</td><td>Pas d'authentification IAM pour RDS</td><td><span class="badge medium">MEDIUM</span></td></tr>
+      <tr><td>21</td><td>CKV_AWS_118</td><td>aws_db_instance</td><td>Enhanced Monitoring non activé</td><td><span class="badge low">LOW</span></td></tr>
+      <tr><td>22</td><td>CKV_AWS_157</td><td>aws_db_instance</td><td>Multi-AZ désactivé</td><td><span class="badge medium">MEDIUM</span></td></tr>
+      <tr><td>23</td><td>CKV_AWS_293</td><td>aws_db_instance</td><td>Performance Insights non activé</td><td><span class="badge low">LOW</span></td></tr>
+      <tr><td>24</td><td>CKV2_AWS_60</td><td>aws_db_instance</td><td>Copy tags to snapshots désactivé</td><td><span class="badge low">LOW</span></td></tr>
+      <tr><td>25</td><td>CKV_AWS_62</td><td>aws_iam_policy</td><td>IAM Action = "*" (wildcard)</td><td><span class="badge critical">CRITICAL</span></td></tr>
+      <tr><td>26</td><td>CKV_AWS_355</td><td>aws_iam_policy</td><td>Resource = "*" pour actions restrictables</td><td><span class="badge critical">CRITICAL</span></td></tr>
+      <tr><td>27</td><td>CKV_AWS_290</td><td>aws_iam_policy</td><td>Write access sans contraintes</td><td><span class="badge high">HIGH</span></td></tr>
+      <tr><td>28</td><td>CKV2_AWS_40</td><td>aws_iam_policy</td><td>Full IAM privileges</td><td><span class="badge critical">CRITICAL</span></td></tr>
+      <tr><td>29</td><td>CKV_AWS_288</td><td>aws_iam_policy</td><td>Politique admin sans MFA</td><td><span class="badge high">HIGH</span></td></tr>
+      <tr><td>30</td><td>CKV_AWS_40</td><td>aws_iam_user_policy_attachment</td><td>Politique attachée à un utilisateur direct</td><td><span class="badge medium">MEDIUM</span></td></tr>
+      <tr><td>31</td><td>CKV_AWS_273</td><td>aws_iam_user</td><td>Accès IAM user (devrait être via SSO)</td><td><span class="badge medium">MEDIUM</span></td></tr>
+      <tr><td>32</td><td>CKV_AWS_283</td><td>aws_iam_policy</td><td>Data destruction actions sans conditions</td><td><span class="badge high">HIGH</span></td></tr>
+      <tr><td>33</td><td>CKV_AWS_289</td><td>aws_iam_policy</td><td>Actions de gestion IAM sans MFA</td><td><span class="badge high">HIGH</span></td></tr>
+      <tr><td>34</td><td>CKV_AWS_274</td><td>aws_iam_user_policy_attachment</td><td>Utilisation de AdministratorAccess</td><td><span class="badge critical">CRITICAL</span></td></tr>
+      <tr><td>35</td><td>CKV_AWS_109</td><td>aws_iam_policy</td><td>Policy sans condition de restriction</td><td><span class="badge high">HIGH</span></td></tr>
+    </tbody>
+  </table>
+
+  <div class="callout info">
+    <strong>Récapitulatif par sévérité</strong>
+    CRITICAL : 8 failles · HIGH : 11 failles · MEDIUM : 10 failles · LOW : 6 failles
+  </div>
+
+  <div class="page-footer">
+    <span>Rapport de projet — Infrastructure as Code Security</span>
+    <span>Page 15</span>
+  </div>
+</div>
+
+</body>
+</html>
