@@ -1,0 +1,125 @@
+name: IaC Security - Checkov SAST Scan
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  checkov-vulnerable:
+    name: "Scan Vulnerable IaC (non-bloquant)"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout du code
+        uses: actions/checkout@v4
+
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Installation de Checkov
+        run: pip install checkov
+
+      - name: Scan du répertoire vulnerable/ (informatif)
+        id: checkov_vulnerable
+        run: |
+          echo "=========================================="
+          echo "  SCAN DU CODE VULNÉRABLE (pédagogique)"
+          echo "  Les échecs sont ATTENDUS ici"
+          echo "=========================================="
+          checkov -d vulnerable/ \
+            --compact \
+            --output json \
+            --output-file-path vulnerable-report \
+            || true  # Ne bloque pas le pipeline (vulnérabilités intentionnelles)
+
+          # Affiche aussi le résultat lisible
+          checkov -d vulnerable/ --compact || true
+
+      - name: Upload rapport vulnerable (JSON)
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: checkov-vulnerable-report
+          path: vulnerable-report/
+          retention-days: 30
+
+  checkov-secure:
+    name: "Scan Secure IaC (bloquant)"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout du code
+        uses: actions/checkout@v4
+
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Installation de Checkov
+        run: pip install checkov
+
+      - name: Scan du répertoire secure/ (gate qualité)
+        id: checkov_secure
+        run: |
+          echo "=========================================="
+          echo "  SCAN DU CODE SÉCURISÉ"
+          echo "  Échec = régression de sécurité bloquante"
+          echo "=========================================="
+          checkov -d secure/ \
+            --compact \
+            --output json \
+            --output-file-path secure-report
+          # Bloque le pipeline si des failles sont détectées dans secure/
+
+          # Affiche aussi le résultat lisible
+          checkov -d secure/ --compact
+
+      - name: Upload rapport secure (JSON)
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: checkov-secure-report
+          path: secure-report/
+          retention-days: 30
+
+  security-summary:
+    name: "Résumé de sécurité"
+    runs-on: ubuntu-latest
+    needs: [checkov-vulnerable, checkov-secure]
+    if: always()
+    steps:
+      - name: Checkout du code
+        uses: actions/checkout@v4
+
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Installation de Checkov
+        run: pip install checkov
+
+      - name: Rapport de comparaison vulnérable vs sécurisé
+        run: |
+          echo "============================================"
+          echo "  RAPPORT COMPARATIF IaC Security Demo"
+          echo "  Projet: Infrastructure-as-Code-Security"
+          echo "  Sujet 07 - Jedy Formation BAC+4"
+          echo "============================================"
+          echo ""
+          echo "--- VULNÉRABILITÉS INTENTIONNELLES (vulnerable/) ---"
+          checkov -d vulnerable/ --compact --quiet 2>/dev/null || true
+          echo ""
+          echo "--- CODE SÉCURISÉ (secure/) ---"
+          checkov -d secure/ --compact --quiet 2>/dev/null || true
+          echo ""
+          echo "============================================"
+          echo "  Scan terminé - Voir les artifacts JSON"
+          echo "============================================"
